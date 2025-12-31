@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 export default function LoginPage() {
   const supabase = supabaseBrowser();
+  const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,8 +20,43 @@ export default function LoginPage() {
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error) setStatus(error.message);
-    else setStatus("Logged in! Now go to /me");
+    if (error) {
+  setStatus(error.message);
+  setLoading(false);
+  return;
+}
+
+setStatus("Logged in. Fetching role…");
+
+// Who is the user?
+const { data: userData, error: userErr } = await supabase.auth.getUser();
+if (userErr || !userData.user?.id) {
+  setStatus(userErr?.message ?? "Could not get user.");
+  setLoading(false);
+  return;
+}
+
+const userId = userData.user.id;
+
+// Fetch their role
+const { data: profile, error: profileErr } = await supabase
+  .from("profiles")
+  .select("role")
+  .eq("user_id", userId)
+  .single();
+
+if (profileErr) {
+  setStatus(profileErr.message);
+  setLoading(false);
+  return;
+}
+
+const role = profile?.role;
+
+if (role === "doctor") router.push("/doctor");
+else if (role === "pharmacist") router.push("/pharmacy");
+else if (role === "nurse") router.push("/nurse");
+else router.push("/patient");
 
     setLoading(false);
   }
