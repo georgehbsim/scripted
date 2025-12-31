@@ -95,8 +95,9 @@ function PatientsInner() {
             {patients.map((p) => (
               <tr key={p.id}>
                 <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
-                  {p.full_name}
-                </td>
+                   <Link href={`/doctor/patients/${p.id}`}>{p.full_name}</Link>
+                  </td>
+
                 <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
                   {p.date_of_birth ?? "—"}
                 </td>
