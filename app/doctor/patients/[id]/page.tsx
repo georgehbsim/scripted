@@ -21,6 +21,8 @@ type PrescriptionRow = {
   frequency: string | null;
   status: string;
   created_at: string;
+  last_dispensed_at?: string | null;
+
 };
 
 
@@ -64,8 +66,39 @@ function PatientDetailInner({ patientId }: { patientId: string }) {
   .eq("patient_id", patientId)
   .order("created_at", { ascending: false });
 
+// Build a map of latest dispense time per prescription
+const rxIds = (rxData as PrescriptionRow[] | null)?.map((r) => r.id) ?? [];
+const dispenseMap = new Map<string, string>();
+
+if (rxIds.length > 0) {
+  const { data: dData, error: dError } = await supabase
+    .from("dispenses")
+    .select("prescription_id, dispensed_at")
+    .in("prescription_id", rxIds)
+    .order("dispensed_at", { ascending: false });
+
+  if (dError) {
+    setError(dError.message);
+    setLoading(false);
+    return;
+  }
+
+  for (const d of (dData ?? []) as any[]) {
+    if (!dispenseMap.has(d.prescription_id)) {
+      dispenseMap.set(d.prescription_id, d.dispensed_at);
+    }
+  }
+}
+
+// Merge into prescriptions state
+const merged = ((rxData ?? []) as PrescriptionRow[]).map((rx) => ({
+  ...rx,
+  last_dispensed_at: dispenseMap.get(rx.id) ?? null,
+}));
+
+setPrescriptions(merged);
+
 if (rxError) setError(rxError.message);
-else setPrescriptions((rxData as PrescriptionRow[]) ?? []);
 
 
       if (error) setError(error.message);
@@ -128,6 +161,11 @@ else setPrescriptions((rxData as PrescriptionRow[]) ?? []);
         <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
           Status
         </th>
+
+        <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
+           Last dispensed
+        </th>
+
       </tr>
     </thead>
     <tbody>
@@ -146,6 +184,12 @@ else setPrescriptions((rxData as PrescriptionRow[]) ?? []);
           <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
             {rx.status}
           </td>
+          <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
+            {rx.last_dispensed_at
+            ? new Date(rx.last_dispensed_at).toLocaleString()
+            : "—"}
+           </td>
+
         </tr>
       ))}
     </tbody>
