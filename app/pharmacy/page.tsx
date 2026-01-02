@@ -204,12 +204,17 @@ function PharmacyInner() {
                 </td>
                 <td style={{ borderBottom: "1px solid #eee", padding: 8, textAlign: "right" }}>
                   <button
-                    onClick={() => markDispensed(r.prescription_id)}
-                    disabled={busyId === r.prescription_id}
-                    style={{ padding: "6px 10px" }}
-                  >
-                    {busyId === r.prescription_id ? "Dispensing…" : "Mark dispensed"}
-                  </button>
+  onClick={() => markDispensed(r.prescription_id)}
+  disabled={busyId === r.prescription_id || r.status !== "active"}
+  style={{ padding: "6px 10px" }}
+>
+  {r.status !== "active"
+    ? "Not active"
+    : busyId === r.prescription_id
+      ? "Dispensing…"
+      : "Mark dispensed"}
+</button>
+
                 </td>
               </tr>
             ))}

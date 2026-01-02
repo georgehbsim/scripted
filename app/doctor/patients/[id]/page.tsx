@@ -47,6 +47,26 @@ function PatientDetailInner({ patientId }: { patientId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [patient, setPatient] = useState<PatientRow | null>(null);
   const [prescriptions, setPrescriptions] = useState<PrescriptionRow[]>([]);
+  const [busyRxId, setBusyRxId] = useState<string | null>(null);
+
+async function stopPrescription(prescriptionId: string) {
+  setBusyRxId(prescriptionId);
+  setError(null);
+
+  const { error } = await supabase
+    .from("prescriptions")
+    .update({ status: "stopped" })
+    .eq("id", prescriptionId);
+
+  if (error) {
+    setError(error.message);
+    setBusyRxId(null);
+    return;
+  }
+
+  // Reload by calling the same logic again: simplest is to refresh the page
+  window.location.reload();
+}
 
 
   useEffect(() => {
@@ -166,6 +186,9 @@ if (rxError) setError(rxError.message);
            Last dispensed
         </th>
 
+         <th style={{ borderBottom: "1px solid #ddd", padding: 8 }} />
+
+
       </tr>
     </thead>
     <tbody>
@@ -189,6 +212,20 @@ if (rxError) setError(rxError.message);
             ? new Date(rx.last_dispensed_at).toLocaleString()
             : "—"}
            </td>
+           <td style={{ borderBottom: "1px solid #eee", padding: 8, textAlign: "right" }}>
+  {rx.status === "active" ? (
+    <button
+      onClick={() => stopPrescription(rx.id)}
+      disabled={busyRxId === rx.id}
+      style={{ padding: "6px 10px" }}
+    >
+      {busyRxId === rx.id ? "Stopping…" : "Stop"}
+    </button>
+  ) : (
+    "—"
+  )}
+</td>
+
 
         </tr>
       ))}
