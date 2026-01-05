@@ -22,8 +22,16 @@ type PrescriptionRow = {
   status: string;
   created_at: string;
   last_dispensed_at?: string | null;
+  dispense_cycle: number;
+  last_dispensed_cycle?: number | null;
 
 };
+
+type DispenseRow = {
+  prescription_id: string;
+  dispensed_at: string;
+};
+
 
 
 export default function PatientDetailPage({
@@ -48,6 +56,26 @@ function PatientDetailInner({ patientId }: { patientId: string }) {
   const [patient, setPatient] = useState<PatientRow | null>(null);
   const [prescriptions, setPrescriptions] = useState<PrescriptionRow[]>([]);
   const [busyRxId, setBusyRxId] = useState<string | null>(null);
+  const [dispenseHistory, setDispenseHistory] = useState<Record<string, string[]>>({});
+
+async function authorizeAnotherDispense(prescriptionId: string, currentCycle: number) {
+  setBusyRxId(prescriptionId);
+  setError(null);
+
+  const { error } = await supabase
+    .from("prescriptions")
+    .update({ dispense_cycle: currentCycle + 1 })
+    .eq("id", prescriptionId);
+
+  if (error) {
+    setError(error.message);
+    setBusyRxId(null);
+    return;
+  }
+
+  window.location.reload();
+}
+
 
 async function stopPrescription(prescriptionId: string) {
   setBusyRxId(prescriptionId);
@@ -82,18 +110,22 @@ async function stopPrescription(prescriptionId: string) {
 
      const { data: rxData, error: rxError } = await supabase
   .from("prescriptions")
-  .select("id, medication_name, dose, route, frequency, status, created_at")
+  .select("id, medication_name, dose, route, frequency, status, dispense_cycle, created_at")
   .eq("patient_id", patientId)
   .order("created_at", { ascending: false });
 
 // Build a map of latest dispense time per prescription
-const rxIds = (rxData as PrescriptionRow[] | null)?.map((r) => r.id) ?? [];
-const dispenseMap = new Map<string, string>();
+const rxIds = ((rxData ?? []) as PrescriptionRow[]).map((r) => r.id);
+
+const historyMap: Record<string, string[]> = {};
+for (const id of rxIds) historyMap[id] = [];
+
+const lastMap = new Map<string, { at: string; cycle: number }>();
 
 if (rxIds.length > 0) {
   const { data: dData, error: dError } = await supabase
     .from("dispenses")
-    .select("prescription_id, dispensed_at")
+    .select("prescription_id, dispensed_at, dispense_cycle")
     .in("prescription_id", rxIds)
     .order("dispensed_at", { ascending: false });
 
@@ -104,19 +136,31 @@ if (rxIds.length > 0) {
   }
 
   for (const d of (dData ?? []) as any[]) {
-    if (!dispenseMap.has(d.prescription_id)) {
-      dispenseMap.set(d.prescription_id, d.dispensed_at);
-    }
+    historyMap[d.prescription_id] ??= [];
+    historyMap[d.prescription_id].push(d.dispensed_at);
+    if (!lastMap.has(d.prescription_id)) {
+  lastMap.set(d.prescription_id, { at: d.dispensed_at, cycle: d.dispense_cycle });
+}
+
   }
 }
 
-// Merge into prescriptions state
-const merged = ((rxData ?? []) as PrescriptionRow[]).map((rx) => ({
-  ...rx,
-  last_dispensed_at: dispenseMap.get(rx.id) ?? null,
-}));
+setDispenseHistory(historyMap);
+
+// Merge "last dispensed" for your existing table column
+const merged = ((rxData ?? []) as PrescriptionRow[]).map((rx) => {
+  const last = lastMap.get(rx.id);
+
+  return {
+    ...rx,
+    last_dispensed_at: last?.at ?? null,
+    last_dispensed_cycle: last?.cycle ?? null,
+  };
+});
 
 setPrescriptions(merged);
+
+
 
 if (rxError) setError(rxError.message);
 
@@ -186,50 +230,80 @@ if (rxError) setError(rxError.message);
            Last dispensed
         </th>
 
-         <th style={{ borderBottom: "1px solid #ddd", padding: 8 }} />
+        <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
+            Dispense history
+        </th>
+        <th style={{ borderBottom: "1px solid #ddd", padding: 8 }} />
 
 
       </tr>
     </thead>
     <tbody>
-      {prescriptions.map((rx) => (
-        <tr key={rx.id}>
-          <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
-            {rx.medication_name}
-            {rx.route ? ` (${rx.route})` : ""}
-          </td>
-          <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
-            {rx.dose ?? "—"}
-          </td>
-          <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
-            {rx.frequency ?? "—"}
-          </td>
-          <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
-            {rx.status}
-          </td>
-          <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
-            {rx.last_dispensed_at
-            ? new Date(rx.last_dispensed_at).toLocaleString()
-            : "—"}
-           </td>
-           <td style={{ borderBottom: "1px solid #eee", padding: 8, textAlign: "right" }}>
-  {rx.status === "active" ? (
-    <button
-      onClick={() => stopPrescription(rx.id)}
-      disabled={busyRxId === rx.id}
-      style={{ padding: "6px 10px" }}
-    >
-      {busyRxId === rx.id ? "Stopping…" : "Stop"}
-    </button>
-  ) : (
-    "—"
-  )}
-</td>
+  {prescriptions.map((rx) => (
+    <tr key={rx.id}>
+      <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
+        {rx.medication_name}
+        {rx.route ? ` (${rx.route})` : ""}
+      </td>
 
+      <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
+        {rx.dose ?? "—"}
+      </td>
 
-        </tr>
-      ))}
-    </tbody>
+      <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
+        {rx.frequency ?? "—"}
+      </td>
+
+      <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
+        {rx.status}
+      </td>
+
+      <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
+        {rx.last_dispensed_at ? new Date(rx.last_dispensed_at).toLocaleString() : "—"}
+      </td>
+
+      <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
+        {dispenseHistory[rx.id]?.length ? (
+          <details>
+            <summary>{dispenseHistory[rx.id].length} dispense(s)</summary>
+            <ul style={{ marginTop: 8 }}>
+              {dispenseHistory[rx.id].map((t, idx) => (
+                <li key={idx}>{new Date(t).toLocaleString()}</li>
+              ))}
+            </ul>
+          </details>
+        ) : (
+          "—"
+        )}
+      </td>
+
+      <td style={{ borderBottom: "1px solid #eee", padding: 8, textAlign: "right" }}>
+        {rx.status === "active" && rx.last_dispensed_cycle === rx.dispense_cycle ? (
+          <button
+            onClick={() => authorizeAnotherDispense(rx.id, rx.dispense_cycle)}
+            disabled={busyRxId === rx.id}
+            style={{ padding: "6px 10px", marginRight: 8 }}
+          >
+            {busyRxId === rx.id ? "Authorising…" : "Authorise another dispense"}
+          </button>
+        ) : null}
+
+        {rx.status === "active" ? (
+          <button
+            onClick={() => stopPrescription(rx.id)}
+            disabled={busyRxId === rx.id}
+            style={{ padding: "6px 10px" }}
+          >
+            {busyRxId === rx.id ? "Working…" : "Stop"}
+          </button>
+        ) : (
+          "—"
+        )}
+      </td>
+    </tr>
+  ))}
+</tbody>
+
   </table>
 )}
 
