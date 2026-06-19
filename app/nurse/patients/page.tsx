@@ -12,9 +12,9 @@ type PatientRow = {
   nhi: string | null;
 };
 
-export default function DoctorPatientsPage() {
+export default function NursePatientsPage() {
   return (
-    <RequireRole allowed={["doctor"]}>
+    <RequireRole allowed={["nurse"]}>
       <PatientsInner />
     </RequireRole>
   );
@@ -53,22 +53,22 @@ function PatientsInner() {
     <main style={{ fontFamily: "system-ui", background: "#f9fafb", minHeight: "100vh" }}>
       <div
         style={{
-    position: "sticky",
-    top: 0,
-    zIndex: 100,
-    height: 56,
-    background: "#111827",
-    color: "#ffffff",
-    display: "grid",
-    gridTemplateColumns: "1fr auto 1fr",
-    alignItems: "center",
-    padding: "0 16px",
-    borderBottom: "1px solid #e5e7eb",
-  }}
+          position: "sticky",
+          top: 0,
+          zIndex: 100,
+          height: 56,
+          background: "#111827",
+          color: "#ffffff",
+          display: "grid",
+          gridTemplateColumns: "1fr auto 1fr",
+          alignItems: "center",
+          padding: "0 16px",
+          borderBottom: "1px solid #e5e7eb",
+        }}
       >
         <div style={{ justifySelf: "start" }}>
           <Link
-            href="/doctor"
+            href="/nurse"
             style={{
               color: "#ffffff",
               textDecoration: "none",
@@ -103,55 +103,28 @@ function PatientsInner() {
             boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              gap: 16,
-              flexWrap: "wrap",
-            }}
-          >
-            <div>
-              <h1
-                style={{
-                  margin: 0,
-                  fontSize: 32,
-                  lineHeight: 1.2,
-                  color: "#111827",
-                }}
-              >
-                Patients
-              </h1>
+          <div>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: 32,
+                lineHeight: 1.2,
+                color: "#111827",
+              }}
+            >
+              Patients
+            </h1>
 
-              <p
-                style={{
-                  marginTop: 12,
-                  marginBottom: 0,
-                  color: "#4b5563",
-                  fontSize: 16,
-                }}
-              >
-                Open a patient record or add a new patient.
-              </p>
-            </div>
-
-            <Link href="/doctor/patients/new" style={{ textDecoration: "none" }}>
-              <button
-                type="button"
-                style={{
-                  padding: "12px 16px",
-                  borderRadius: 10,
-                  border: "1px solid #111827",
-                  background: "#111827",
-                  color: "#ffffff",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                + Add patient
-              </button>
-            </Link>
+            <p
+              style={{
+                marginTop: 12,
+                marginBottom: 0,
+                color: "#4b5563",
+                fontSize: 16,
+              }}
+            >
+              Open a patient record to review medications and record administrations.
+            </p>
           </div>
 
           {loading && <p style={{ marginTop: 24 }}>Loading…</p>}
@@ -237,7 +210,7 @@ function PatientsInner() {
                         }}
                       >
                         <Link
-                          href={`/doctor/patients/${p.id}`}
+                          href={`/nurse/patients/${p.id}`}
                           style={{
                             color: "#111827",
                             textDecoration: "none",
