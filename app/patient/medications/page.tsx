@@ -10,10 +10,10 @@ import MedicationTablePatient, {
 } from "@/components/patient/MedicationTablePatient";
 
 const DEMO_PATIENT = {
-  id: "0edcf8e8-6499-4708-82a2-bc8a54109212",
-  full_name: "Kay Digo",
-  nhi: "AKI7439",
-  date_of_birth: null,
+  id: "cec4bc88-d5d2-4dff-a27d-1a0465147de0",
+  full_name: "Justin Time",
+  nhi: "GBD8765",
+  date_of_birth: "1980-08-04",
   allergies: null,
 };
 
